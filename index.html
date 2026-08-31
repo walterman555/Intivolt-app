@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d2747">
+<link rel="manifest" href="manifest.json">
+<title>INTIVOLT ENERGÍA</title>
+<style>
+:root{--navy:#0d2747;--gold:#d5a928;--ink:#142b49;--bg:#f5f7fb;--card:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
+header{background:var(--navy);color:#fff;padding:18px 18px 16px;position:sticky;top:0;z-index:5;box-shadow:0 3px 12px #0002}
+.brand{font-weight:900;font-size:25px;letter-spacing:.5px}.brand small{display:block;color:var(--gold);font-size:11px;letter-spacing:3px;margin-top:1px}
+main{max-width:720px;margin:auto;padding:18px 14px 36px}.card{background:var(--card);border-radius:20px;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px #0d27470d}
+h1{font-size:25px;margin:3px 0 6px}h2{font-size:18px;margin:0 0 14px}.sub{color:#607089;font-size:14px;margin-bottom:14px}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,select,textarea{width:100%;padding:13px;border:1px solid #d8dee8;border-radius:12px;font-size:16px;background:#fff;color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;border:0;border-radius:13px;padding:14px;font-size:16px;font-weight:800;background:var(--navy);color:#fff;margin-top:14px}.btn.gold{background:var(--gold);color:var(--navy)}
+.result{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#f6f8fb;border-radius:14px;padding:13px}.metric b{display:block;font-size:22px;margin-top:4px}.metric span{font-size:12px;color:#66758a}.accent{border-left:4px solid var(--gold)}
+.note{font-size:12px;color:#69778b;line-height:1.45}.footer{text-align:center;color:#77859a;font-size:12px;padding:8px}
+</style>
+</head>
+<body>
+<header><div class="brand">INTIVOLT <small>ENERGÍA</small></div></header>
+<main>
+<section class="card">
+<h1>Calculadora INTIVOLT</h1>
+<div class="sub">Instalación fotovoltaica · dimensionamiento según consumo real</div>
+<div class="grid">
+<div><label>Cliente</label><input id="cliente" placeholder="Nombre / empresa"></div>
+<div><label>Localidad</label><input id="localidad" placeholder="Ciudad"></div>
+</div>
+<label>Consumo mensual (kWh)</label><input id="consumo" type="number" min="0" value="1500">
+<div class="grid">
+<div><label>Precio energía (€/kWh)</label><input id="precio" type="number" min="0" step="0.001" value="0.16"></div>
+<div><label>Autoconsumo estimado</label><select id="auto"><option value="0.75">75%</option><option value="0.80" selected>80%</option><option value="0.85">85%</option><option value="0.90">90%</option></select></div>
+</div>
+<label>Producción específica (kWh/kWp/año)</label><input id="prod" type="number" min="500" value="1500">
+<label>Comentarios / datos de la visita</label>
+<textarea id="comentarios" rows="5" placeholder="Ej.: nave industrial, consumo 8.500 kWh/mes, factura 0,14 €/kWh, cubierta metálica, orientación sur, 1200 m² disponibles, quiere batería..."></textarea>
+<p class="note">Escribe aquí lo que tengas de la visita. La app intentará detectar consumo, precio, superficie y otros datos útiles.</p>
+<button class="btn" onclick="calcular()">CALCULAR INSTALACIÓN Y AHORRO</button>
+</section>
+
+<section class="card accent" id="out" style="display:none">
+<h2>Resultado</h2>
+<div class="result">
+<div class="metric"><span>Potencia recomendada</span><b id="kwp"></b></div>
+<div class="metric"><span>Producción anual</span><b id="kwh"></b></div>
+<div class="metric"><span>Ahorro anual</span><b id="ahorro"></b></div>
+<div class="metric"><span>Ahorro mensual</span><b id="ahorroMes"></b></div>
+<div class="metric"><span>Inversión estimada</span><b id="inversion"></b></div>
+<div class="metric"><span>Retorno simple</span><b id="retorno"></b></div>
+</div>
+<p class="note" id="detalle"></p>
+</section>
+
+<section class="card">
+<h2>Resumen comercial</h2>
+<p id="resumen" class="note">Introduce los datos y calcula para generar el resumen.</p>
+<button class="btn gold" onclick="copiar()">COPIAR RESUMEN</button>
+</section>
+<div class="footer">INTIVOLT ENERGÍA · Ingeniería eléctrica y fotovoltaica</div>
+</main>
+<script>
+function euro(n){return n.toLocaleString('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0})}
+function numFromText(s){
+ const m=s.replace(",",".").match(/(\d+(?:\.\d+)?)/);
+ return m?parseFloat(m[1]):null;
+}
+function parseComments(){
+ const t=(document.getElementById('comentarios').value||'').toLowerCase();
+ let consumo=numFromText((t.match(/(?:consumo|consume|gast[oa]|kwh\s*(?:\/|al)?\s*mes|mensual)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
+ let precio=numFromText((t.match(/(?:precio|coste|€/kwh|eur\/kwh)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
+ let superficie=numFromText((t.match(/(?:superficie|cubierta|tejado|techo|m2|metros cuadrados)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
+ if(consumo) document.getElementById('consumo').value=consumo;
+ if(precio) document.getElementById('precio').value=precio;
+ return {consumo,precio,superficie};
+}
+function calcular(){
+ const extra=parseComments();
+ const c=+document.getElementById('consumo').value||0,p=+document.getElementById('precio').value||0,
+ auto=+document.getElementById('auto').value,prod=+document.getElementById('prod').value||1500;
+ const anual=c*12, kwp=Math.max(1, anual*0.75/prod), prodAn=kwp*prod;
+ const ahorro=prodAn*p*auto, inversion=kwp*1050, retorno=ahorro?inversion/ahorro:0;
+ document.getElementById('kwp').textContent=kwp.toFixed(1)+' kWp';
+ document.getElementById('kwh').textContent=Math.round(prodAn).toLocaleString('es-ES')+' kWh';
+ document.getElementById('ahorro').textContent=euro(ahorro);
+ document.getElementById('ahorroMes').textContent=euro(ahorro/12);
+ document.getElementById('inversion').textContent=euro(inversion);
+ document.getElementById('retorno').textContent=retorno.toFixed(1)+' años';
+ document.getElementById('detalle').textContent='Estimación orientativa basada en los datos introducidos. La app ha intentado extraer automáticamente datos del campo de comentarios.';
+ const cliente=document.getElementById('cliente').value||'Cliente',loc=document.getElementById('localidad').value||'';
+ let extraTxt='';
+ if(extra.superficie) extraTxt=' Superficie detectada: '+extra.superficie+' m².';
+ document.getElementById('resumen').textContent=`INTIVOLT ENERGÍA — ${cliente}${loc?' · '+loc:''}. Potencia estimada: ${kwp.toFixed(1)} kWp. Producción: ${Math.round(prodAn).toLocaleString('es-ES')} kWh/año. Ahorro estimado: ${euro(ahorro)}/año. Inversión orientativa: ${euro(inversion)}. Retorno simple: ${retorno.toFixed(1)} años.${extraTxt}`;
+ document.getElementById('out').style.display='block';
+ localStorage.setItem('intivolt_last',document.getElementById('resumen').textContent);
+}
+function copiar(){navigator.clipboard?.writeText(document.getElementById('resumen').textContent);alert('Resumen copiado.')}
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body></html>
