@@ -1,1 +1,22 @@
-{"name":"INTIVOLT ENERGÍA","short_name":"INTIVOLT","start_url":"./","display":"standalone","background_color":"#f5f7fb","theme_color":"#0d2747","icons":[]}
+{
+  "name": "INTIVOLT",
+  "short_name": "INTIVOLT",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b2342",
+  "theme_color": "#0b2342",
+  "icons": [
+    {
+      "src": "intivolt-app-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "intivolt-app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
