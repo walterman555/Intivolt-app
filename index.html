@@ -23,7 +23,7 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <header><div class="brand">INTIVOLT <small>ENERGÍA</small></div></header>
 <main>
 <section class="card">
-<h1>Calculadora INTIVOLT · v5 COMPLETA</h1>
+<h1>Calculadora INTIVOLT</h1>
 <div class="sub">Fotovoltaica + baterías + backup · estimación inicial</div>
 
 <div class="grid">
@@ -101,7 +101,7 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
   <div><label>Autoconsumo estimado</label>
     <select id="auto">
       <option value="0.75">75%</option><option value="0.80" selected>80%</option>
-      <option value="0.85">85%</option><option value="0.90">90%</option>
+      <option value="0.85">85%</option><option value="0.90">90%</option><option value="0.95">95%</option><option value="1.00">100%</option>
     </select>
   </div>
   <div><label>Producción específica (kWh/kWp/año)</label>
@@ -123,30 +123,6 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <button class="btn gold" type="button" onclick="calcularDisposicion()">CALCULAR DISPOSICIÓN DE PANELES</button>
 <p class="note">Puedes cambiar 550 W por 610 W, 600 W, etc. La app compara potencia, número de módulos y superficie aproximada. Disposición preliminar, no replanteo técnico.</p>
 <div id="panelResult" class="note" style="margin-top:10px"></div>
-</div>
-
-<div class="card" style="margin-top:14px;background:#fbfcfe">
-<h2>🔋 Batería y ⚡ Backup</h2>
-<label>¿Quiere batería?</label>
-<select id="bateria2" onchange="actualizarBackupUI()">
-<option value="no">No / por estudiar</option><option value="si">Sí</option>
-</select>
-<div id="backupFields" style="display:none">
-<label>Tipo de respaldo</label>
-<select id="backupTipo"><option value="criticas">Backup de cargas críticas</option><option value="full">Full Backup — toda la instalación</option></select>
-<div class="grid">
-<div><label>Potencia de backup (kW)</label><input id="backupKW" type="number" min="0" step="0.1" placeholder="Ej.: 15"></div>
-<div><label>Autonomía deseada (horas)</label><input id="backupHoras" type="number" min="0" step="0.5" value="4"></div>
-</div>
-<label>Cargas críticas / equipos</label>
-<input id="cargasCriticas" placeholder="Ej.: iluminación, cámaras, refrigeración, servidores...">
-<div class="grid">
-<div><label>Capacidad batería (kWh útiles)</label><input id="bateriaKWh" type="number" min="0" step="1" placeholder="Automático"></div>
-<div><label>Margen de batería</label><select id="margenBateria"><option value="1.15">15%</option><option value="1.20" selected>20%</option><option value="1.25">25%</option></select></div>
-</div>
-<button class="btn" type="button" onclick="calcularBackup()">CALCULAR BATERÍA Y BACKUP</button>
-<div id="backupResult" class="note" style="margin-top:10px"></div>
-</div>
 </div>
 
 <label>Comentarios / datos de la visita</label>
@@ -172,7 +148,7 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <section class="card">
 <h2>Resumen comercial</h2>
 <p id="resumen" class="note">Introduce los datos y calcula para generar el resumen.</p>
-<button class="btn gold" onclick="copiar()">COPIAR RESUMEN</button>
+<button class="btn gold" type="button" onclick="copiar()">COPIAR RESUMEN</button>
 </section>
 <div class="footer">INTIVOLT ENERGÍA · Ingeniería eléctrica y fotovoltaica</div>
 </main>
@@ -308,7 +284,7 @@ function calcular(){
     const anual=d.consumoMensual*12;
 
     // Dimensionamiento energético preliminar. No existe límite fijo de 20 kWp.
-    const coberturaObjetivo=Math.min(0.85, Math.max(0.65, auto*0.90));
+    const coberturaObjetivo=Math.min(1.00, Math.max(0.65, auto));
     let kwp=Math.max(1, anual*coberturaObjetivo/prod);
 
     // Si conocemos la superficie, comprobar límite físico aproximado.
@@ -326,23 +302,26 @@ function calcular(){
     const inversion=kwp*1050;
     const retorno=ahorro?inversion/ahorro:0;
 
+    const bateria=document.getElementById('bateria').value==='si';
+    const backup=document.getElementById('backup')?.value||'total';
+    const potBackup=+document.getElementById('potBackup')?.value||0;
+    const horasBackup=+document.getElementById('horasBackup')?.value||0;
+
+    window.intivoltKwp = kwp;
     document.getElementById('kwp').textContent=kwp.toFixed(1)+' kWp';
     document.getElementById('kwh').textContent=Math.round(prodAn).toLocaleString('es-ES')+' kWh';
     document.getElementById('ahorro').textContent=money(ahorro,d.moneda);
     document.getElementById('ahorroMes').textContent=money(ahorro/12,d.moneda);
     document.getElementById('inversion').textContent=money(inversion,d.moneda);
     document.getElementById('retorno').textContent=retorno.toFixed(1)+' años';
-    document.getElementById('bateriaResultado').textContent=bateria? (bateriaBackup?Math.round(bateriaBackup)+' kWh backup':'A dimensionar') : 'No seleccionada';
-
-    const bateria=document.getElementById('bateria').value==='si';
-    const backup=document.getElementById('backup')?.value||'total';
-    const potBackup=+document.getElementById('potBackup')?.value||0;
-    const horasBackup=+document.getElementById('horasBackup')?.value||0;
-    const bateriaAhorro=Math.max(0, Math.min(anual/365*0.45, prodAn/365*0.45));
+    const consumoDiario=anual/365;
+    let bateriaAhorro=consumoDiario<=10?5:consumoDiario<=20?10:consumoDiario<=35?15:20;
+    let bateriaNivel=bateriaAhorro<=10?'10 kWh':bateriaAhorro<=15?'15 kWh':'20 kWh';
     const bateriaBackup=potBackup>0 && horasBackup>0 ? potBackup*horasBackup*1.20 : 0;
+    document.getElementById('bateriaResultado').textContent=bateria ? (bateriaBackup?`Backup: ${Math.round(bateriaBackup)} kWh · Ahorro: ${bateriaNivel}`:`Recomendada: ${bateriaNivel}`) : 'No seleccionada';
     let bateriaTexto='';
     if(bateria){
-      bateriaTexto=` Batería para ahorro: ~${Math.round(bateriaAhorro)} kWh útiles/día de referencia.`;
+      bateriaTexto=` Batería para ahorro: recomendación inicial ${bateriaNivel}, según el consumo diario estimado (${consumoDiario.toFixed(1)} kWh/día). Opciones comerciales de referencia: 10 / 15 / 20 kWh.`;
       if(backup==='total'){
         bateriaTexto+=bateriaBackup?` Backup total: ~${Math.round(bateriaBackup)} kWh nominales para ${potBackup} kW durante ${horasBackup} h, antes de validar picos de arranque.`:' Backup total seleccionado: faltan kW de la instalación y horas de autonomía para dimensionar la batería.';
       }
@@ -365,6 +344,7 @@ function calcular(){
       `Retorno simple: ${retorno.toFixed(1)} años.${extraTxt}${bateria}`;
 
     document.getElementById('out').style.display='block';
+    if (typeof calcularDisposicion === 'function') calcularDisposicion();
     document.getElementById('out').scrollIntoView({behavior:'smooth',block:'start'});
     localStorage.setItem('intivolt_last',document.getElementById('resumen').textContent);
   }catch(e){ alert(e.message); }
@@ -378,38 +358,29 @@ function copiar(){
 cambiarPais();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
-function actualizarBackupUI(){
- const b=document.getElementById('bateria2'), f=document.getElementById('backupFields');
- if(b&&f) f.style.display=b.value==='si'?'block':'none';
-}
 function getBaseKwp(){
- const e=document.getElementById('kwp'); if(!e)return 0;
- const m=(e.textContent||'').match(/[\d.,]+/);
- return m?parseFloat(m[0].replace(/\./g,'').replace(',','.')):0;
+ return Number(window.intivoltKwp || 0);
 }
 function calcularDisposicion(){
  const kwp=getBaseKwp(), w=+(document.getElementById('panelW').value||550);
  const L=+(document.getElementById('panelL').value||2.28), A=+(document.getElementById('panelA').value||1.13);
  const sup=+(document.getElementById('superficieCubierta').value||0);
  if(!kwp){alert('Primero calcula la instalación para obtener la potencia FV.');return;}
- const n=Math.ceil(kwp*1000/w), area=n*L*A;
+ const targetModules=kwp*1000/w;
+ const floorN=Math.max(1,Math.floor(targetModules));
+ const ceilN=Math.max(1,Math.ceil(targetModules));
+ const floorDiff=Math.abs(floorN*w/1000-kwp);
+ const ceilDiff=Math.abs(ceilN*w/1000-kwp);
+ const n=(floorDiff<=ceilDiff)?floorN:ceilN;
+ const area=n*L*A;
  let best=null;
  for(let c=1;c<=Math.ceil(Math.sqrt(n)*3);c++){
   const r=Math.ceil(n/c), score=Math.abs(c/r-1);
   if(!best||score<best.score)best={c,r,score};
  }
  let warn=sup?(area<=sup?` ✓ Dentro de los ${sup.toFixed(1)} m² indicados, antes de márgenes y obstáculos.`:` ⚠️ Los módulos ocupan ${area.toFixed(1)} m² y superan los ${sup.toFixed(1)} m² indicados.`):'';
- document.getElementById('panelResult').innerHTML=`<b>${n} paneles × ${w} W = ${(n*w/1000).toFixed(2)} kWp</b><br>Disposición preliminar: ${best.c} × ${best.r}.<br>Superficie de módulos: ${area.toFixed(1)} m².${warn}`;
+ document.getElementById('panelResult').innerHTML=`<b>${n} paneles × ${w} W = ${(n*w/1000).toFixed(2)} kWp</b><br>Disposición preliminar: ${best.c} × ${best.r}.<br>Superficie de módulos: ${area.toFixed(1)} m².${warn}<br><span class="note">Cálculo sincronizado con la potencia actual de la instalación.</span>`;
 }
-function calcularBackup(){
- if(document.getElementById('bateria2').value!=='si')return;
- const tipo=document.getElementById('backupTipo').value, kw=+(document.getElementById('backupKW').value||0);
- const h=+(document.getElementById('backupHoras').value||0), margen=+(document.getElementById('margenBateria').value||1.2);
- if(kw<=0||h<=0){document.getElementById('backupResult').innerHTML='⚠️ Introduce potencia de backup y horas de autonomía.';return;}
- const util=kw*h, nominal=util*margen/0.90;
- document.getElementById('backupResult').innerHTML=`<b>${tipo==='full'?'FULL BACKUP':'BACKUP DE CARGAS CRÍTICAS'}</b><br>Energía mínima: <b>${util.toFixed(1)} kWh útiles</b>.<br>Batería nominal orientativa: <b>${nominal.toFixed(0)} kWh</b>.<br>Potencia mínima de respaldo: <b>${kw.toFixed(1)} kW</b>.<br>⚠️ Verificar picos de arranque, potencia continua del inversor y cargas simultáneas.`;
-}
-document.addEventListener('DOMContentLoaded',actualizarBackupUI);
 
 </script>
 </body></html>
