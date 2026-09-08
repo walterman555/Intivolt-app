@@ -17,6 +17,15 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;border:0;border-radius:13px;padding:14px;font-size:16px;font-weight:800;background:var(--navy);color:#fff;margin-top:14px}.btn.gold{background:var(--gold);color:var(--navy)}
 .result{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#f6f8fb;border-radius:14px;padding:13px}.metric b{display:block;font-size:22px;margin-top:4px}.metric span{font-size:12px;color:#66758a}.accent{border-left:4px solid var(--gold)}
 .note{font-size:12px;color:#69778b;line-height:1.45}.footer{text-align:center;color:#77859a;font-size:12px;padding:8px}
+#modoClienteBar{display:none;position:fixed;top:10px;right:10px;z-index:20;background:#fff;border-radius:14px;padding:8px 10px;box-shadow:0 4px 18px #0003;align-items:center;gap:8px;font-weight:800;font-size:12px}#modoClienteBar button{border:0;border-radius:10px;padding:9px 12px;background:var(--navy);color:#fff;font-weight:800}body.modoCliente main{padding-top:18px}
+.visual-stage{position:relative;width:100%;overflow:hidden;border-radius:14px;background:#eef2f7;margin-top:10px;line-height:0}
+.visual-stage img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
+.visual-stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;touch-action:none}
+.visual-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.visual-controls .btn{margin-top:0;font-size:13px;padding:11px}
+.visual-hint{background:#f6f8fb;border-radius:12px;padding:10px;margin-top:10px;font-size:12px;line-height:1.45;color:#596b82}
+.visual-count{font-weight:800}
+@media(max-width:520px){.visual-controls{grid-template-columns:1fr}}
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="intivolt-app-icon-180.png">
 </head>
@@ -50,8 +59,12 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 </div>
 
 <div id="ecuadorFields">
-  <label>Gasto mensual de electricidad (USD)</label>
-  <input id="gasto" type="number" min="0" step="1" value="300" placeholder="Ej.: 300">
+  <label>Consumo mensual (kWh) — dato prioritario</label>
+  <input id="consumoEC" type="number" min="0" step="1" placeholder="Ej.: 900">
+  <div class="sub" style="margin:6px 0 0">Si tienes la factura, usa los kWh del periodo. Es el dato preferente para dimensionar.</div>
+
+  <label>Gasto mensual de electricidad (USD), si no tienes los kWh</label>
+  <input id="gasto" type="number" min="0" step="1" placeholder="Ej.: 300" placeholder="Ej.: 300">
   <div class="sub" style="margin:6px 0 0">Si no conoces los kWh, introduce simplemente cuánto pagas al mes.</div>
 
   <label>Tarifa / método de cálculo</label>
@@ -99,7 +112,7 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 </div>
 
 <div class="grid">
-  <div><label>Autoconsumo estimado</label>
+  <div><label>Cobertura solar objetivo</label>
     <select id="auto">
       <option value="0.75">75%</option><option value="0.80" selected>80%</option>
       <option value="0.85">85%</option><option value="0.90">90%</option><option value="0.95">95%</option><option value="1.00">100%</option>
@@ -126,6 +139,12 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <div id="panelResult" class="note" style="margin-top:10px"></div>
 </div>
 
+<div class="grid">
+  <div><label>Coste orientativo instalación (por kWp)</label><input id="costeKwp" type="number" min="0" step="50" value="1050"></div>
+  <div><label>Margen técnico batería</label><input id="margenBateria" type="number" min="1" step="0.05" value="1.20"></div>
+</div>
+<p class="note">Parámetros comerciales internos para la estimación inicial. No representan un precio cerrado ni sustituyen el dimensionamiento técnico.</p>
+
 <label>Comentarios / datos de la visita</label>
 <textarea id="comentarios" rows="5" placeholder="Ej.: paga 300 USD/mes, cubierta metálica, orientación sur, 1200 m² disponibles, quiere batería..."></textarea>
 <p class="note">Puedes escribir lo que tengas de la visita. La app intentará detectar gasto, kWh, precio y superficie.</p>
@@ -133,7 +152,7 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <button class="btn" type="button" onclick="calcular()">CALCULAR INSTALACIÓN Y AHORRO</button>
 </section>
 
-<section class="card accent" id="out" style="display:none">
+<section class="card accent cliente-visible" id="out" style="display:none">
 <h2>Resultado</h2>
 <div class="result">
 <div class="metric"><span>Potencia recomendada</span><b id="kwp"></b></div>
@@ -146,11 +165,72 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <p class="note" id="detalle"></p>
 </section>
 
+
+<section class="card accent">
+<h2>📋 Nueva visita</h2>
+<div class="grid">
+<div><label>Tipo de cliente</label><select id="tipoCliente"><option>Vivienda</option><option>Negocio</option><option>Industrial</option></select></div>
+<div><label>Objetivo principal</label><select id="objetivoPrincipal"><option>Ahorro</option><option>Ahorro + autoconsumo</option><option>Backup</option><option>Full Backup</option></select></div>
+</div>
+<label>¿Qué ocurre cuando se va la luz?</label>
+<select id="corteLuz">
+<option>Nada importante</option><option>Se para parte de la vivienda</option><option>Se para toda la vivienda</option><option>Se para el negocio</option><option>Hay pérdidas económicas</option><option>Necesita funcionamiento normal</option>
+</select>
+<label>Cargas / equipos importantes</label>
+<input id="equipos" placeholder="Ej.: aire acondicionado, bombas, cámaras, servidores, refrigeración...">
+</section>
+
+<section class="card">
+<h2>📸 Cubierta y propuesta visual</h2>
+<label>Foto de cubierta</label>
+<input id="fotoCubierta" type="file" accept="image/*" capture="environment">
+<p class="note">La foto se guarda localmente en este dispositivo para la visita. La propuesta visual será preliminar y no sustituye un replanteo técnico.</p>
+<div id="fotoPreview" style="display:none;margin-top:10px"></div>
+<div id="visualTools" style="display:none">
+  <div class="visual-hint"><b>Visualización sobre la cubierta</b><br>Marca con el dedo o ratón las <b>4 esquinas de la zona útil del tejado</b>. Después la app colocará los módulos en perspectiva según la potencia calculada. Es una visual comercial preliminar, no un replanteo técnico.</div>
+  <button class="btn" type="button" onclick="iniciarMarcadoTecho()">📐 MARCAR 4 ESQUINAS DEL TECHO</button>
+  <div class="visual-stage" id="visualStage">
+    <img id="visualImage" alt="Cubierta del cliente">
+    <canvas id="visualCanvas"></canvas>
+  </div>
+  <div class="visual-controls">
+    <button class="btn" type="button" onclick="deshacerPunto()">↩ DESHACER PUNTO</button>
+    <button class="btn" type="button" onclick="limpiarTecho()">✕ LIMPIAR</button>
+  </div>
+  <div class="grid" style="margin-top:10px">
+    <div><label>Disposición</label><select id="visualOrientacion"><option value="horizontal">Panel horizontal</option><option value="vertical">Panel vertical</option></select></div>
+    <div><label>Separación visual</label><select id="visualGap"><option value="0.025">Normal</option><option value="0.015">Compacta</option><option value="0.04">Amplia</option></select></div>
+  </div>
+  <button class="btn gold" type="button" onclick="colocarPanelesEnTecho()">☀️ COLOCAR PANELES EN EL TECHO</button>
+</div>
+<div id="visualResult" class="note" style="margin-top:10px"></div>
+</section>
+
+<section class="card">
+<h2>🔲 Comparador de módulos</h2>
+<p class="note">Compara rápidamente diferentes potencias para elegir una solución comercial que encaje mejor.</p>
+<div id="comparadorModulos"></div>
+<button class="btn" type="button" onclick="compararModulos()">COMPARAR 550 / 580 / 605 / 610 W</button>
+</section>
+
+<section class="card">
+<h2>👤 Modo cliente</h2>
+<button class="btn gold" type="button" onclick="modoCliente()">MOSTRAR AL CLIENTE</button>
+<button class="btn" type="button" onclick="modoTecnico()">VOLVER A MODO TÉCNICO</button>
+</section>
+
 <section class="card">
 <h2>Resumen comercial</h2>
 <p id="resumen" class="note">Introduce los datos y calcula para generar el resumen.</p>
-<button class="btn gold" type="button" onclick="copiar()">COPIAR RESUMEN</button>
+<div class="grid"><button class="btn gold" type="button" onclick="copiar()">COPIAR RESUMEN</button><button class="btn" type="button" onclick="guardarVisita()">GUARDAR VISITA</button></div>
+<button class="btn" type="button" onclick="nuevaVisita()">NUEVA VISITA</button>
 </section>
+
+<section class="card">
+<h2>📂 Visitas guardadas</h2>
+<div id="visitasGuardadas" class="note">No hay visitas guardadas.</div>
+</section>
+
 <div class="footer">INTIVOLT ENERGÍA · Ingeniería eléctrica y fotovoltaica</div>
 </main>
 <script>
@@ -158,67 +238,35 @@ function money(n,currency){
   return n.toLocaleString('es-ES',{style:'currency',currency:currency,maximumFractionDigits:0});
 }
 function numFromText(s){
-  if(!s) return null;
-  const m=String(s).replace(",",".").match(/(\d+(?:\.\d+)?)/);
-  return m?parseFloat(m[1]):null;
+  if(s===null||s===undefined||s==='') return null;
+  const normalized=String(s).replace(/\s/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.');
+  const m=normalized.match(/\d+(?:\.\d+)?/);
+  return m?parseFloat(m[0]):null;
 }
-function cambiarPais(){
-  const pais=document.getElementById('pais').value;
-  document.getElementById('ecuadorFields').style.display=pais==='EC'?'block':'none';
-  document.getElementById('espanaFields').style.display=pais==='ES'?'block':'none';
-  actualizarProduccion();
-}
-function actualizarProduccion(){
-  const pais=document.getElementById('pais').value;
-  const loc=(document.getElementById('localidad').value||'').toLowerCase();
-  const prod=document.getElementById('prod');
-  if(pais==='EC'){
-    prod.value=loc.includes('manta') ? 1356 : 1450;
-  }else{
-    prod.value=loc.includes('alicante') ? 1610 : 1600;
-  }
-}
-document.addEventListener('DOMContentLoaded',()=>{
-  const m=document.getElementById('metodoEC');
-  if(m) m.addEventListener('change',()=>{
-    document.getElementById('precioManualEC').style.display=m.value==='manual'?'block':'none';
-  });
-  const l=document.getElementById('localidad');
-  if(l) l.addEventListener('blur',actualizarProduccion);
-});
 function parseComments(){
-  const t=(document.getElementById('comentarios').value||'').toLowerCase();
+  const t=(document.getElementById('comentarios')?.value||'').toLowerCase();
   let consumo=null, precio=null, gasto=null, superficie=null;
-  const kwhMatch=t.match(/(\d+(?:[.,]\d+)?)\s*kwh/);
-  if(kwhMatch) consumo=numFromText(kwhMatch[1]);
-  const gastoMatch=t.match(/(?:gasto|pago|factura)[^0-9]{0,20}(\d+(?:[.,]\d+)?)/);
-  if(gastoMatch) gasto=numFromText(gastoMatch[1]);
-  const precioMatch=t.match(/(?:precio|coste|tarifa)[^0-9]{0,20}(\d+(?:[.,]\d+)?)/);
-  if(precioMatch) precio=numFromText(precioMatch[1]);
-  const superficieMatch=t.match(/(?:superficie|cubierta|tejado|techo)[^0-9]{0,20}(\d+(?:[.,]\d+)?)/);
-  if(superficieMatch) superficie=numFromText(superficieMatch[1]);
+  let m=t.match(/(\d+(?:[.,]\d+)?)\s*kwh\s*(?:\/\s*mes|mensuales|al\s*mes)?/i); if(m) consumo=numFromText(m[1]);
+  m=t.match(/(?:gasto|pago|factura|abasto)[^0-9]{0,30}(\d+(?:[.,]\d+)?)/i); if(m) gasto=numFromText(m[1]);
+  m=t.match(/(?:precio|coste|tarifa)[^0-9]{0,30}(\d+(?:[.,]\d+)?)/i); if(m) precio=numFromText(m[1]);
+  m=t.match(/(?:superficie|cubierta|tejado|techo)[^0-9]{0,30}(\d+(?:[.,]\d+)?)/i); if(m) superficie=numFromText(m[1]);
   return {consumo,precio,gasto,superficie};
 }
 function costeResidencialEC(q){
-  // ARCONEL 2026: cargo por comercialización + cargos incrementales de energía.
-  // Rango y precios oficiales publicados en el pliego 2026.
+  // ARCONEL 2026: cargo de comercialización + cargos incrementales por energía.
   const bloques=[
-    [50,0.091],[50,0.093],[50,0.095],[50,0.097],[50,0.099],
-    [50,0.101],[50,0.103],[150,0.105],[200,0.1285],[300,0.1450],
-    [500,0.1709],[1000,0.2752],[1000,0.4360],[1e9,0.6812]
+    [50,0.091],[50,0.093],[50,0.095],[50,0.097],[50,0.099],[50,0.101],[50,0.103],
+    [150,0.105],[200,0.1285],[300,0.1450],[500,0.1709],[1000,0.2752],[1000,0.4360],[1e9,0.6812]
   ];
-  let rem=q,total=1.414;
+  let rem=Math.max(0,q), total=1.414;
   for(const [qty,rate] of bloques){
-    const take=Math.min(rem,qty);
-    total+=take*rate;
-    rem-=take;
-    if(rem<=0) break;
+    const take=Math.min(rem,qty); total+=take*rate; rem-=take; if(rem<=0) break;
   }
   return total;
 }
 function consumoDesdeFacturaEC(factura){
   let lo=0,hi=10000;
-  for(let i=0;i<70;i++){
+  for(let i=0;i<80;i++){
     const mid=(lo+hi)/2;
     if(costeResidencialEC(mid)>factura) hi=mid; else lo=mid;
   }
@@ -227,129 +275,200 @@ function consumoDesdeFacturaEC(factura){
 function obtenerDatos(){
   const pais=document.getElementById('pais').value;
   const tipo=document.getElementById('tipoSuministro').value;
+  const comentarios=document.getElementById('comentarios')?.value||'';
   const extra=parseComments();
-  const notas=document.getElementById('comentarios').value||'';
+  const superficie=extra.superficie || (+document.getElementById('superficieCubierta').value||0);
 
   if(pais==='EC'){
-    const gasto=+document.getElementById('gasto').value||0;
-    if(gasto<=0) throw new Error('Introduce el gasto mensual en USD.');
+    let consumoMensual=+document.getElementById('consumoEC').value||0;
+    let gasto=+document.getElementById('gasto').value||0;
+    const metodo=document.getElementById('metodoEC').value;
+    const precioManual=+document.getElementById('precioUSD').value||0;
+    let precioEfectivo=0, confianza='alta';
 
-    if(extra.gasto && /(?:\$|usd|d[oó]lares|d[oó]lar|pago|factura|gasto)/i.test(notas)){
-      document.getElementById('gasto').value=extra.gasto;
+    if(consumoMensual<=0 && extra.consumo){
+      consumoMensual=extra.consumo;
+      confianza='media: consumo detectado en comentarios; confirmar en factura';
+    }
+    if(gasto<=0 && extra.gasto){
+      gasto=extra.gasto;
+      confianza=confianza.startsWith('media')?confianza:'media: gasto detectado en comentarios';
     }
 
-    let consumoMensual=0, precioEfectivo=0.10, metodo=document.getElementById('metodoEC').value;
-    let confianza='media';
-
-    if(tipo==='residencial' && metodo==='oficial'){
-      consumoMensual=consumoDesdeFacturaEC(+document.getElementById('gasto').value||gasto);
-      precioEfectivo=(+document.getElementById('gasto').value||gasto)/consumoMensual;
-      confianza='media-alta para una primera valoración';
+    if(consumoMensual>0){
+      if(gasto>0) precioEfectivo=gasto/consumoMensual;
+      else if(metodo==='manual' && precioManual>0) precioEfectivo=precioManual;
+      else if(tipo==='residencial'){
+        gasto=costeResidencialEC(consumoMensual);
+        precioEfectivo=gasto/consumoMensual;
+        confianza='media-alta: factura estimada con la tarifa residencial 2026';
+      }else precioEfectivo=0;
+      if(gasto>0 && extra.consumo===null && !confianza.startsWith('media-alta')) confianza='alta: kWh y factura introducidos';
+      else if(gasto>0 && !confianza.startsWith('media-alta')) confianza='media: kWh y factura detectados/introducidos';
+    }else if(tipo==='residencial' && gasto>0 && metodo==='oficial'){
+      consumoMensual=consumoDesdeFacturaEC(gasto);
+      precioEfectivo=gasto/consumoMensual;
+      confianza='media-alta: kWh estimados a partir de la tarifa residencial 2026';
+    }else if(gasto>0 && metodo==='manual'){
+      if(precioManual<=0) throw new Error('Introduce un precio efectivo USD/kWh válido.');
+      consumoMensual=gasto/precioManual;
+      precioEfectivo=precioManual;
+      confianza='media-baja: kWh estimados con precio efectivo introducido';
     }else if(tipo==='general'){
-      // Comercial/industrial: NO convertir la factura a kWh con un precio universal.
-      // Las tarifas pueden incluir demanda, comercialización y periodos horarios.
-      const precioManual=+document.getElementById('precioUSD').value||0;
-      if(extra.consumo && /kwh/i.test(notas)){
-        consumoMensual=extra.consumo;
-        precioEfectivo=precioManual||((+document.getElementById('gasto').value||gasto)/consumoMensual);
-        confianza=precioManual?'media':'media-baja: consumo detectado en comentarios; revisar factura';
-      }else{
-        throw new Error('En comercial/industrial introduce el consumo mensual real en kWh (preferiblemente de la factura). No se estima kWh dividiendo USD entre un precio genérico.');
-      }
+      throw new Error('En comercial/industrial introduce los kWh/mes reales de la factura. No conviertas el gasto a kWh con una tarifa genérica.');
     }else{
-      precioEfectivo=+document.getElementById('precioUSD').value||0.10;
-      consumoMensual=(+document.getElementById('gasto').value||gasto)/precioEfectivo;
-      confianza='media-baja: requiere factura o kWh reales';
+      throw new Error('Introduce los kWh/mes o, si no los tienes, el gasto mensual para estimarlo con la tarifa residencial 2026.');
     }
-
-    if(extra.consumo && /kwh/i.test(notas)) consumoMensual=extra.consumo;
-    return {
-      pais,tipo,gasto:gasto,precio:precioEfectivo,consumoMensual,
-      moneda:'USD',superficie:extra.superficie,confianza,metodo
-    };
+    if(consumoMensual<=0) throw new Error('El consumo mensual debe ser mayor que cero.');
+    return {pais,tipo,gasto,precio:precioEfectivo,consumoMensual,moneda:'USD',superficie,confianza,metodo};
   }
 
   let consumoMensual=+document.getElementById('consumoES').value||0;
-  const gasto=+document.getElementById('gastoES').value||0;
-  const precio=+document.getElementById('precioES').value||0.16;
-  if(consumoMensual<=0 && gasto>0) consumoMensual=gasto/precio;
+  let gasto=+document.getElementById('gastoES').value||0;
+  const precio=+document.getElementById('precioES').value||0;
   if(consumoMensual<=0 && extra.consumo) consumoMensual=extra.consumo;
+  if(gasto<=0 && extra.gasto) gasto=extra.gasto;
+  if(consumoMensual<=0 && gasto>0){
+    if(precio<=0) throw new Error('Introduce un precio estimado €/kWh válido para convertir la factura en kWh.');
+    consumoMensual=gasto/precio;
+  }
   if(consumoMensual<=0) throw new Error('Introduce los kWh/mes o, si no los conoces, el gasto mensual en euros.');
-  return {pais,tipo,gasto:gasto||consumoMensual*precio,precio,consumoMensual,moneda:'EUR',superficie:extra.superficie,confianza:'media'};
+  const precioEfectivo=precio>0?precio:(gasto>0?gasto/consumoMensual:0);
+  return {pais,tipo,gasto:gasto||consumoMensual*precioEfectivo,precio:precioEfectivo,consumoMensual,moneda:'EUR',superficie,confianza:consumoMensual===+document.getElementById('consumoES').value?'alta':'media'};
 }
+function actualizarProduccion(){
+  const pais=document.getElementById('pais')?.value;
+  const loc=(document.getElementById('localidad')?.value||'').toLowerCase();
+  const prod=document.getElementById('prod');
+  if(!prod) return;
+  if(pais==='EC') prod.value=loc.includes('manta')?1356:1450;
+  else prod.value=loc.includes('alicante')?1610:1600;
+}
+function cambiarPais(){
+  const pais=document.getElementById('pais').value;
+  document.getElementById('ecuadorFields').style.display=pais==='EC'?'block':'none';
+  document.getElementById('espanaFields').style.display=pais==='ES'?'block':'none';
+  actualizarProduccion();
+}
+
 function calcular(){
   try{
     const d=obtenerDatos();
-    const auto=+document.getElementById('auto').value;
-    const prod=+document.getElementById('prod').value||1500;
+    const auto=Math.min(1,Math.max(0.65,+document.getElementById('auto').value||0.80));
+    const prod=Math.max(500,+document.getElementById('prod').value||1500);
     const anual=d.consumoMensual*12;
 
-    // Dimensionamiento energético preliminar. No existe límite fijo de 20 kWp.
-    const coberturaObjetivo=Math.min(1.00, Math.max(0.65, auto));
-    let kwp=Math.max(1, anual*coberturaObjetivo/prod);
+    // La potencia FV se obtiene de la cobertura energética objetivo.
+    // No existe límite artificial de potencia.
+    let kwpEnergetico=Math.max(1,anual*auto/prod);
 
-    // Si conocemos la superficie, comprobar límite físico aproximado.
-    // Referencia comercial: ~2.3 m² por módulo de 550 W, con 85% de superficie útil.
-    let kwpCubierta=null;
-    if(d.superficie>0) kwpCubierta=(d.superficie*0.85/2.3)*0.55;
+    // Comprobación física de cubierta usando el módulo realmente seleccionado.
+    const w=Math.max(100,+document.getElementById('panelW').value||550);
+    const L=Math.max(0.5,+document.getElementById('panelL').value||2.28);
+    const A=Math.max(0.3,+document.getElementById('panelA').value||1.13);
+    const areaModulo=L*A;
+    const sup=d.superficie||0;
+    let kwp=kwpEnergetico;
     let avisoCubierta='';
-    if(kwpCubierta && kwp>kwpCubierta){
-      avisoCubierta=` Cubierta limitante: ${kwpCubierta.toFixed(1)} kWp aprox. frente a ${kwp.toFixed(1)} kWp energéticos.`;
-      kwp=kwpCubierta;
+    if(sup>0){
+      const maxModulos=Math.floor((sup*0.85)/areaModulo);
+      const kwpCubierta=maxModulos*w/1000;
+      if(maxModulos<1) throw new Error('La superficie indicada no permite ni un módulo con las dimensiones introducidas.');
+      if(kwp>kwpCubierta){
+        avisoCubierta=` Cubierta limitante: caben aproximadamente ${maxModulos} módulos (${kwpCubierta.toFixed(1)} kWp) con un 15% reservado para márgenes/obstáculos.`;
+        kwp=kwpCubierta;
+      }
     }
 
     const prodAn=kwp*prod;
-    const ahorro=Math.min(d.gasto*12, prodAn*d.precio*auto);
-    const inversion=kwp*1050;
-    const retorno=ahorro?inversion/ahorro:0;
+    const energiaFvObjetivo=Math.min(anual*auto,prodAn);
 
-    const bateria=document.getElementById('bateria').value==='si';
+    // El objetivo de backup implica batería aunque el usuario no la haya marcado inicialmente.
+    const objetivo=document.getElementById('objetivoPrincipal')?.value||'Ahorro';
+    let bateria=document.getElementById('bateria').value==='si';
+    if((objetivo==='Backup'||objetivo==='Full Backup') && !bateria){
+      bateria=true;
+      document.getElementById('bateria').value='si';
+    }
+
+    // Sin curva horaria no existe un autoconsumo exacto. Estos son factores preliminares
+    // explícitos, no una medición: batería favorece el desplazamiento de energía.
+    const autoMin=bateria?0.75:0.60;
+    const autoMax=bateria?0.90:0.80;
+    const energiaAutoconsumidaMin=Math.min(energiaFvObjetivo,energiaFvObjetivo*autoMin);
+    const energiaAutoconsumidaMax=Math.min(energiaFvObjetivo,energiaFvObjetivo*autoMax);
+
+    const gastoAnual=d.gasto*12;
+    if(d.precio<=0 || gastoAnual<=0){
+      throw new Error('Para calcular ahorro e inversión necesito un gasto mensual y un precio efectivo de la energía.');
+    }
+    const ahorroMin=Math.min(gastoAnual,energiaAutoconsumidaMin*d.precio);
+    const ahorroMax=Math.min(gastoAnual,energiaAutoconsumidaMax*d.precio);
+    const costeKwp=Math.max(0,+document.getElementById('costeKwp').value||0);
+    if(costeKwp<=0) throw new Error('Introduce un coste orientativo por kWp válido.');
+    const inversion=kwp*costeKwp;
+    const retornoMin=ahorroMax>0?inversion/ahorroMax:0;
+    const retornoMax=ahorroMin>0?inversion/ahorroMin:0;
+
     const backup=document.getElementById('backup')?.value||'total';
     const potBackup=+document.getElementById('potBackup')?.value||0;
     const horasBackup=+document.getElementById('horasBackup')?.value||0;
+    const margenBateria=Math.max(1,+document.getElementById('margenBateria').value||1.20);
+    const bateriaBackup=potBackup>0 && horasBackup>0 ? potBackup*horasBackup*margenBateria : 0;
 
-    window.intivoltKwp = kwp;
+    window.intivoltKwp=kwp;
+    window.intivoltModules=Math.max(1,Math.round(kwp*1000/w));
     document.getElementById('kwp').textContent=kwp.toFixed(1)+' kWp';
     document.getElementById('kwh').textContent=Math.round(prodAn).toLocaleString('es-ES')+' kWh';
-    document.getElementById('ahorro').textContent=money(ahorro,d.moneda);
-    document.getElementById('ahorroMes').textContent=money(ahorro/12,d.moneda);
+    document.getElementById('ahorro').textContent=`${money(ahorroMin,d.moneda)}–${money(ahorroMax,d.moneda)}`;
+    document.getElementById('ahorroMes').textContent=`${money(ahorroMin/12,d.moneda)}–${money(ahorroMax/12,d.moneda)}`;
     document.getElementById('inversion').textContent=money(inversion,d.moneda);
-    document.getElementById('retorno').textContent=retorno.toFixed(1)+' años';
+    document.getElementById('retorno').textContent=`${retornoMin.toFixed(1)}–${retornoMax.toFixed(1)} años`;
+
     const consumoDiario=anual/365;
-    let bateriaAhorro=consumoDiario<=10?5:consumoDiario<=20?10:consumoDiario<=35?15:20;
-    let bateriaNivel=bateriaAhorro<=10?'10 kWh':bateriaAhorro<=15?'15 kWh':'20 kWh';
-    const bateriaBackup=potBackup>0 && horasBackup>0 ? potBackup*horasBackup*1.20 : 0;
+    let bateriaNivel;
+    if(!bateria) bateriaNivel='No seleccionada';
+    else if(kwp>=30 || d.tipo==='general') bateriaNivel='A dimensionar con perfil horario';
+    else bateriaNivel=consumoDiario<=10?'5 kWh':consumoDiario<=20?'10 kWh':consumoDiario<=35?'15 kWh':'20 kWh';
     document.getElementById('bateriaResultado').textContent=bateria ? (bateriaBackup?`Backup: ${Math.round(bateriaBackup)} kWh · Ahorro: ${bateriaNivel}`:`Recomendada: ${bateriaNivel}`) : 'No seleccionada';
+
     let bateriaTexto='';
     if(bateria){
-      bateriaTexto=` Batería para ahorro: recomendación inicial ${bateriaNivel}, según el consumo diario estimado (${consumoDiario.toFixed(1)} kWh/día). Opciones comerciales de referencia: 10 / 15 / 20 kWh.`;
+      bateriaTexto=` Batería para ahorro: ${bateriaNivel}. El tamaño definitivo requiere perfil de consumo, potencia de carga/descarga y estrategia de operación.`;
       if(backup==='total'){
-        bateriaTexto+=bateriaBackup?` Backup total: ~${Math.round(bateriaBackup)} kWh nominales para ${potBackup} kW durante ${horasBackup} h, antes de validar picos de arranque.`:' Backup total seleccionado: faltan kW de la instalación y horas de autonomía para dimensionar la batería.';
+        bateriaTexto+=bateriaBackup?` Backup total preliminar: ~${Math.round(bateriaBackup)} kWh para ${potBackup} kW durante ${horasBackup} h, antes de validar picos de arranque y capacidad útil.`:' Backup total seleccionado: faltan kW de carga y horas de autonomía.';
+      }else if(backup==='criticas'){
+        bateriaTexto+=' Backup de cargas críticas: introducir la potencia de las cargas que realmente deben mantenerse y su autonomía.';
       }
     }
+
     document.getElementById('detalle').textContent=
-      `ESTIMACIÓN INICIAL (${d.confianza}). Consumo: ${Math.round(d.consumoMensual).toLocaleString('es-ES')} kWh/mes. `+
-      `${Math.round(d.consumoMensual*12).toLocaleString('es-ES')} kWh/año. Producción específica usada: ${prod} kWh/kWp/año. `+
-      `Objetivo energético preliminar: ${Math.round(coberturaObjetivo*100)}%.${avisoCubierta}`+
-      ` La valoración definitiva requiere revisión técnica (cubierta, orientación, sombras, cuadro, protecciones, demanda, rutas y equipos).${bateriaTexto}`;
+      `ESTIMACIÓN INICIAL (${d.confianza}). Consumo: ${Math.round(d.consumoMensual).toLocaleString('es-ES')} kWh/mes (${Math.round(anual).toLocaleString('es-ES')} kWh/año). `+
+      `Producción específica usada: ${prod} kWh/kWp/año. Cobertura energética objetivo: ${Math.round(auto*100)}%. `+
+      `Producción FV calculada: ${Math.round(prodAn).toLocaleString('es-ES')} kWh/año. `+
+      `Para el ahorro se considera preliminarmente un autoconsumo del ${Math.round(autoMin*100)}–${Math.round(autoMax*100)}% de la FV; el valor real requiere perfil horario. `+
+      `Energía autoconsumida estimada: ${Math.round(energiaAutoconsumidaMin).toLocaleString('es-ES')}–${Math.round(energiaAutoconsumidaMax).toLocaleString('es-ES')} kWh/año.${avisoCubierta}`+
+      ` Coste de referencia: ${money(costeKwp,d.moneda)}/kWp. La valoración definitiva requiere revisión técnica de cubierta, orientación, sombras, cuadro, protecciones, demanda, rutas y equipos.${bateriaTexto}`;
 
     const cliente=document.getElementById('cliente').value||'Cliente';
     const loc=document.getElementById('localidad').value||'';
     const paisTexto=d.pais==='EC'?'Ecuador':'España';
-    const extraTxt=d.superficie?` Superficie detectada: ${d.superficie} m².`:'';
+    const extraTxt=d.superficie?` Superficie indicada: ${d.superficie} m².`:'';
     document.getElementById('resumen').textContent=
       `INTIVOLT ENERGÍA — ${paisTexto} — ${cliente}${loc?' · '+loc:''}. `+
-      `Consumo estimado: ${Math.round(anual).toLocaleString('es-ES')} kWh/año. `+
-      `Potencia estimada: ${kwp.toFixed(1)} kWp. Producción: ${Math.round(prodAn).toLocaleString('es-ES')} kWh/año. `+
-      `Ahorro estimado: ${money(ahorro,d.moneda)}/año. Inversión orientativa: ${money(inversion,d.moneda)}. `+
-      `Retorno simple: ${retorno.toFixed(1)} años.${extraTxt}${bateria}`;
+      `Consumo: ${Math.round(anual).toLocaleString('es-ES')} kWh/año. Potencia FV: ${kwp.toFixed(1)} kWp. `+
+      `Producción: ${Math.round(prodAn).toLocaleString('es-ES')} kWh/año. Ahorro preliminar: ${money(ahorroMin,d.moneda)}–${money(ahorroMax,d.moneda)}/año. `+
+      `Inversión orientativa: ${money(inversion,d.moneda)}. Retorno simple: ${retornoMin.toFixed(1)}–${retornoMax.toFixed(1)} años.${extraTxt}${bateria?' Batería: sí.':''}`;
 
     document.getElementById('out').style.display='block';
-    if (typeof calcularDisposicion === 'function') calcularDisposicion();
+    calcularDisposicion();
     document.getElementById('out').scrollIntoView({behavior:'smooth',block:'start'});
-    localStorage.setItem('intivolt_last',document.getElementById('resumen').textContent);
-  }catch(e){ alert(e.message); }
+    storageSet('intivolt_last',document.getElementById('resumen').textContent);
+  }catch(e){ alert(e.message||'No se ha podido calcular.'); }
 }
+
+function storageGet(key, fallback='') { try { return localStorage.getItem(key) ?? fallback; } catch(e) { return fallback; } }
+function storageSet(key, value) { try { localStorage.setItem(key, value); return true; } catch(e) { return false; } }
 function copiar(){
   const txt=document.getElementById('resumen').textContent;
   if(navigator.clipboard && window.isSecureContext){
@@ -363,25 +482,266 @@ function getBaseKwp(){
  return Number(window.intivoltKwp || 0);
 }
 function calcularDisposicion(){
- const kwp=getBaseKwp(), w=+(document.getElementById('panelW').value||550);
- const L=+(document.getElementById('panelL').value||2.28), A=+(document.getElementById('panelA').value||1.13);
- const sup=+(document.getElementById('superficieCubierta').value||0);
- if(!kwp){alert('Primero calcula la instalación para obtener la potencia FV.');return;}
- const targetModules=kwp*1000/w;
- const floorN=Math.max(1,Math.floor(targetModules));
- const ceilN=Math.max(1,Math.ceil(targetModules));
- const floorDiff=Math.abs(floorN*w/1000-kwp);
- const ceilDiff=Math.abs(ceilN*w/1000-kwp);
- const n=(floorDiff<=ceilDiff)?floorN:ceilN;
- const area=n*L*A;
- let best=null;
- for(let c=1;c<=Math.ceil(Math.sqrt(n)*3);c++){
-  const r=Math.ceil(n/c), score=Math.abs(c/r-1);
-  if(!best||score<best.score)best={c,r,score};
- }
- let warn=sup?(area<=sup?` ✓ Dentro de los ${sup.toFixed(1)} m² indicados, antes de márgenes y obstáculos.`:` ⚠️ Los módulos ocupan ${area.toFixed(1)} m² y superan los ${sup.toFixed(1)} m² indicados.`):'';
- document.getElementById('panelResult').innerHTML=`<b>${n} paneles × ${w} W = ${(n*w/1000).toFixed(2)} kWp</b><br>Disposición preliminar: ${best.c} × ${best.r}.<br>Superficie de módulos: ${area.toFixed(1)} m².${warn}<br><span class="note">Cálculo sincronizado con la potencia actual de la instalación.</span>`;
+  const kwp=getBaseKwp();
+  const w=Math.max(100,+(document.getElementById('panelW').value||550));
+  const L=Math.max(0.5,+(document.getElementById('panelL').value||2.28));
+  const A=Math.max(0.3,+(document.getElementById('panelA').value||1.13));
+  const sup=+(document.getElementById('superficieCubierta').value||0);
+  const el=document.getElementById('panelResult');
+  if(!kwp){
+    el.innerHTML='⚠️ Primero calcula la instalación para obtener la potencia FV.';
+    return;
+  }
+  const targetModules=kwp*1000/w;
+  let n=Math.max(1,Math.round(targetModules));
+  let area=n*L*A;
+  let aviso='';
+  if(sup>0){
+    const maxModules=Math.floor((sup*0.85)/(L*A));
+    if(maxModules<1){ el.innerHTML='⚠️ La cubierta indicada no permite un módulo con estas dimensiones.'; return; }
+    if(n>maxModules){
+      n=maxModules;
+      area=n*L*A;
+      aviso=`<br>⚠️ Limitado por cubierta: máximo aproximado ${maxModules} módulos usando un 85% de superficie útil.`;
+    }else{
+      aviso=`<br>✓ Cabe en la superficie indicada usando un 85% de superficie útil.`;
+    }
+  }
+  const realKwp=n*w/1000;
+  let best=null;
+  for(let c=1;c<=Math.ceil(Math.sqrt(n)*3);c++){
+    const r=Math.ceil(n/c), score=Math.abs(c/r-1);
+    if(!best||score<best.score)best={c,r,score};
+  }
+  el.innerHTML=`<b>${n} paneles × ${w} W = ${realKwp.toFixed(2)} kWp</b><br>Disposición geométrica preliminar: ${best.c} × ${best.r}.<br>Superficie de módulos: ${area.toFixed(1)} m².${aviso}<br><span class="note">La disposición es orientativa: hay que comprobar orientación, pasillos, obstáculos, fijaciones y distancias de seguridad en el replanteo.</span>`;
 }
+
+
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+function actualizarFotoPreview(){
+ const f=document.getElementById('fotoCubierta'), p=document.getElementById('fotoPreview'), tools=document.getElementById('visualTools');
+ if(!f||!p||!f.files||!f.files[0]){if(p)p.style.display='none';if(tools)tools.style.display='none';return;}
+ const r=new FileReader();
+ r.onload=e=>{
+   const src=e.target.result;
+   p.innerHTML=''; p.style.display='block';
+   tools.style.display='block';
+   const img=document.getElementById('visualImage');
+   const canvas=document.getElementById('visualCanvas');
+   img.onload=()=>{
+     canvas.width=img.naturalWidth||1200; canvas.height=img.naturalHeight||800;
+     canvas.style.width='100%'; canvas.style.height='100%';
+     window.visualImageReady=true; window.visualPoints=[]; window.visualMarking=false; window.visualPlaced=false;
+     dibujarVisual();
+   };
+   img.src=src;
+   // Keep a lightweight thumbnail in the original preview area for compatibility.
+   p.innerHTML='<div class="note">Foto cargada correctamente. Usa el visor de abajo para marcar la cubierta.</div>';
+ };
+ r.readAsDataURL(f.files[0]);
+}
+
+function visualCanvasPoint(ev){
+ const c=document.getElementById('visualCanvas'); if(!c)return null;
+ const rect=c.getBoundingClientRect();
+ return {x:(ev.clientX-rect.left)*(c.width/rect.width), y:(ev.clientY-rect.top)*(c.height/rect.height)};
+}
+function iniciarMarcadoTecho(){
+ if(!window.visualImageReady){document.getElementById('visualResult').innerHTML='⚠️ Carga primero una foto de cubierta.';return;}
+ window.visualPoints=[]; window.visualMarking=true; window.visualPlaced=false; dibujarVisual();
+ document.getElementById('visualResult').innerHTML='👆 Toca o haz clic en las 4 esquinas de la zona de tejado donde quieres mostrar los paneles.';
+}
+function deshacerPunto(){if(!window.visualPoints)window.visualPoints=[];if(window.visualPoints.length){window.visualPoints.pop();window.visualMarking=true;window.visualPlaced=false;dibujarVisual();}}
+function limpiarTecho(){window.visualPoints=[];window.visualMarking=false;window.visualPlaced=false;dibujarVisual();document.getElementById('visualResult').innerHTML='Zona de techo limpiada.';}
+function dibujarVisual(){
+ const c=document.getElementById('visualCanvas'); if(!c)return; const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+ const pts=window.visualPoints||[];
+ if(pts.length){ctx.save();ctx.lineWidth=Math.max(3,c.width/500);ctx.strokeStyle='#d5a928';ctx.fillStyle='rgba(213,169,40,.16)';ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));if(pts.length===4)ctx.closePath();ctx.stroke();if(pts.length===4)ctx.fill();
+ pts.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,Math.max(7,c.width/90),0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#0d2747';ctx.stroke();ctx.fillStyle='#0d2747';ctx.font=`bold ${Math.max(14,c.width/55)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(i+1),p.x,p.y);});ctx.restore();}
+ if(window.visualPlaced && pts.length===4) dibujarPaneles(ctx,pts);
+}
+function lerp(a,b,t){return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};}
+
+// Proyección perspectiva real: transforma un rectángulo unitario en el
+// cuadrilátero marcado. Evita la deformación irregular que producía la
+// interpolación bilineal y mantiene cada módulo coherente con el plano del tejado.
+function solveLinear(A,b){
+ const n=b.length, M=A.map((r,i)=>r.slice().concat([b[i]]));
+ for(let i=0;i<n;i++){
+   let p=i;
+   for(let r=i+1;r<n;r++) if(Math.abs(M[r][i])>Math.abs(M[p][i])) p=r;
+   if(Math.abs(M[p][i])<1e-12) return null;
+   [M[i],M[p]]=[M[p],M[i]];
+   const q=M[i][i]; for(let j=i;j<=n;j++) M[i][j]/=q;
+   for(let r=0;r<n;r++) if(r!==i){const f=M[r][i]; if(Math.abs(f)>1e-12) for(let j=i;j<=n;j++) M[r][j]-=f*M[i][j];}
+ }
+ return M.map(r=>r[n]);
+}
+function homographyFromQuad(pts){
+ // Unidad: (0,0)=p0, (1,0)=p1, (1,1)=p2, (0,1)=p3.
+ const A=[],b=[];
+ [[0,0,pts[0]],[1,0,pts[1]],[1,1,pts[2]],[0,1,pts[3]]].forEach(([u,v,p])=>{
+   A.push([u,v,1,0,0,0,-u*p.x,-v*p.x]); b.push(p.x);
+   A.push([0,0,0,u,v,1,-u*p.y,-v*p.y]); b.push(p.y);
+ });
+ const h=solveLinear(A,b); if(!h)return null;
+ return function(u,v){const d=h[6]*u+h[7]*v+1;return {x:(h[0]*u+h[1]*v+h[2])/d,y:(h[3]*u+h[4]*v+h[5])/d};};
+}
+function polygonArea(p){let a=0;for(let i=0;i<p.length;i++){const q=p[(i+1)%p.length];a+=p[i].x*q.y-q.x*p[i].y;}return Math.abs(a)/2;}
+function dibujarPaneles(ctx,pts){
+ const kwp=Number(window.intivoltKwp||0), w=Number(document.getElementById('panelW')?.value||550);
+ if(!kwp||!w||pts.length!==4)return;
+ const n=Math.max(1,Math.round(kwp*1000/w));
+ const orient=document.getElementById('visualOrientacion')?.value||'horizontal';
+ const gap=Math.max(.005,Math.min(.08,Number(document.getElementById('visualGap')?.value||.025)));
+ const H=homographyFromQuad(pts); if(!H)return;
+ const edgeW=Math.hypot(pts[1].x-pts[0].x,pts[1].y-pts[0].y);
+ const edgeH=Math.hypot(pts[3].x-pts[0].x,pts[3].y-pts[0].y);
+ const panelL=Math.max(0.5,Number(document.getElementById('panelL')?.value||2.28));
+ const panelA=Math.max(0.3,Number(document.getElementById('panelA')?.value||1.13));
+ // Relación física REAL del módulo. En horizontal el lado largo va sobre U;
+ // en vertical se intercambian largo/ancho.
+ const moduleRatio=orient==='vertical' ? (panelA/panelL) : (panelL/panelA);
+ // La relación correcta para una cubierta rectangular es: 
+ // (ancho de módulo / alto de módulo) ≈ (edgeW/cols) / (edgeH/rows).
+ // La versión anterior tenía esta relación invertida y por eso algunos módulos
+ // parecían demasiado grandes/deformados.
+ let best=null;
+ for(let cols=1;cols<=Math.max(1,n);cols++){
+   const rows=Math.ceil(n/cols);
+   const physicalRatio=(edgeW/Math.max(edgeH,1))*(rows/cols);
+   const score=Math.abs(Math.log(Math.max(physicalRatio,1e-6)/moduleRatio)) + (cols*rows-n)*0.025;
+   if(!best||score<best.score)best={cols,rows,score};
+ }
+ const cols=best.cols, rows=best.rows;
+ const margin=.055;
+ const innerU0=margin,innerU1=1-margin,innerV0=margin,innerV1=1-margin;
+ const cellW=(innerU1-innerU0)/cols, cellH=(innerV1-innerV0)/rows;
+ // Separación visual basada en el hueco entre módulos; nunca estiramos un módulo
+ // para rellenar la cubierta.
+ const gU=Math.min(cellW*.18,Math.max(.004,gap*0.55));
+ const gV=Math.min(cellH*.18,Math.max(.004,gap*0.55));
+ const drawN=n;
+ for(let k=0;k<drawN;k++){
+   const col=k%cols,row=Math.floor(k/cols);
+   const u0=innerU0+col*cellW+gU/2, u1=innerU0+(col+1)*cellW-gU/2;
+   const v0=innerV0+row*cellH+gV/2, v1=innerV0+(row+1)*cellH-gV/2;
+   const a=H(u0,v0), b=H(u1,v0), c=H(u1,v1), d=H(u0,v1);
+   ctx.save();
+   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
+   ctx.fillStyle='rgba(18,38,63,.88)';ctx.fill();
+   ctx.strokeStyle='rgba(245,248,252,.92)';ctx.lineWidth=Math.max(1,c.width/1100);ctx.stroke();
+   // Líneas de células fotovoltaicas para dar aspecto de módulo real sin convertirlo en un render falso.
+   ctx.save();ctx.clip();ctx.strokeStyle='rgba(190,215,235,.34)';ctx.lineWidth=Math.max(.6,c.width/2600);
+   for(let gx=1;gx<6;gx++){const t=gx/6;const l=lerp(a,d,t),r=lerp(b,c,t);ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(r.x,r.y);ctx.stroke();}
+   for(let gy=1;gy<10;gy++){const t=gy/10;const l=lerp(a,b,t),r=lerp(d,c,t);ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(r.x,r.y);ctx.stroke();}
+   ctx.restore();ctx.restore();
+ }
+ // Una sombra muy suave bajo la matriz para integrarla en la fotografía.
+ ctx.save();
+ const q0=H(innerU0,innerV0),q1=H(innerU1,innerV0),q2=H(innerU1,innerV1),q3=H(innerU0,innerV1);
+ ctx.beginPath();ctx.moveTo(q0.x+2,q0.y+3);ctx.lineTo(q1.x+2,q1.y+3);ctx.lineTo(q2.x+2,q2.y+3);ctx.lineTo(q3.x+2,q3.y+3);ctx.closePath();
+ ctx.fillStyle='rgba(0,0,0,.10)';ctx.fill();ctx.restore();
+}
+function colocarPanelesEnTecho(){
+ const pts=window.visualPoints||[]; const out=document.getElementById('visualResult');
+ if(pts.length!==4){out.innerHTML='⚠️ Marca primero las 4 esquinas de la zona de techo.';window.visualMarking=true;return;}
+ const kwp=Number(window.intivoltKwp||0),w=Number(document.getElementById('panelW')?.value||550);
+ if(!kwp){out.innerHTML='⚠️ Calcula primero la instalación para conocer cuántos módulos colocar.';return;}
+ window.visualMarking=false;window.visualPlaced=true;dibujarVisual();
+ const n=Math.max(1,Math.round(kwp*1000/w));
+ out.innerHTML=`<b>PROPUESTA VISUAL PRELIMINAR</b><br><span class="visual-count">${n} módulos de ${w} W · ${(n*w/1000).toFixed(2)} kWp</span><br>Paneles colocados en perspectiva dentro de la zona marcada. Es una visual comercial y debe verificarse técnicamente antes de ofertar o instalar.`;
+}
+(function(){
+ document.addEventListener('DOMContentLoaded',()=>{
+   const f=document.getElementById('fotoCubierta'); if(f)f.addEventListener('change',actualizarFotoPreview);
+   const m=document.getElementById('metodoEC'); if(m)m.addEventListener('change',()=>{const e=document.getElementById('precioManualEC'); if(e)e.style.display=m.value==='manual'?'block':'none';});
+   const l=document.getElementById('localidad'); if(l)l.addEventListener('blur',actualizarProduccion);
+   const c=document.getElementById('visualCanvas');
+   if(c){
+     c.addEventListener('pointerdown',ev=>{
+       if(!window.visualMarking || (window.visualPoints||[]).length>=4)return;
+       ev.preventDefault(); const p=visualCanvasPoint(ev); if(p){window.visualPoints.push(p);dibujarVisual();if(window.visualPoints.length===4){window.visualMarking=false;document.getElementById('visualResult').innerHTML='✅ Techo marcado. Ahora pulsa «COLOCAR PANELES EN EL TECHO».';}}
+     });
+   }
+   ['visualOrientacion','visualGap'].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener('change',()=>{if(window.visualPlaced)dibujarVisual();});});
+ });
+})();
+
+function modoCliente(){
+  document.body.classList.add('modoCliente');
+  let bar=document.getElementById('modoClienteBar');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='modoClienteBar';
+    bar.innerHTML='<span>👤 MODO CLIENTE</span><button type="button" onclick="modoTecnico()">VOLVER A TÉCNICO</button>';
+    document.body.appendChild(bar);
+  }
+  bar.style.display='flex';
+  document.querySelectorAll('main > section.card').forEach((s)=>{
+    if(s.id==='out' || s.classList.contains('cliente-visible')) s.style.display='';
+    else s.style.display='none';
+  });
+  const out=document.getElementById('out');
+  if(out) out.style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function modoTecnico(){
+  document.body.classList.remove('modoCliente');
+  const bar=document.getElementById('modoClienteBar');
+  if(bar) bar.style.display='none';
+  document.querySelectorAll('main > section.card').forEach(s=>s.style.display='');
+}
+function visitaData(){
+ return {
+  fecha:new Date().toISOString(),
+  cliente:document.getElementById('cliente')?.value||'',
+  localidad:document.getElementById('localidad')?.value||'',
+  tipo:document.getElementById('tipoCliente')?.value||'',
+  objetivo:document.getElementById('objetivoPrincipal')?.value||'',
+  corte:document.getElementById('corteLuz')?.value||'',
+  equipos:document.getElementById('equipos')?.value||'',
+  pais:document.getElementById('pais')?.value||'EC',
+  tipoSuministro:document.getElementById('tipoSuministro')?.value||'residencial',
+  consumoEC:document.getElementById('consumoEC')?.value||'', gasto:document.getElementById('gasto')?.value||'',
+  consumoES:document.getElementById('consumoES')?.value||'', gastoES:document.getElementById('gastoES')?.value||'',
+  bateria:document.getElementById('bateria')?.value||'no', backup:document.getElementById('backup')?.value||'total',
+  potBackup:document.getElementById('potBackup')?.value||'', horasBackup:document.getElementById('horasBackup')?.value||'',
+  panelW:document.getElementById('panelW')?.value||'550', panelL:document.getElementById('panelL')?.value||'2.28', panelA:document.getElementById('panelA')?.value||'1.13',
+  superficieCubierta:document.getElementById('superficieCubierta')?.value||'', comentarios:document.getElementById('comentarios')?.value||'',
+  resumen:document.getElementById('resumen')?.textContent||''
+ };
+}
+function guardarVisita(){
+ const key='intivolt_visitas'; let list=[]; try{list=JSON.parse(storageGet(key,'[]'))||[];}catch(e){list=[];}
+ list.unshift(visitaData());
+ if(!storageSet(key,JSON.stringify(list.slice(0,50)))){alert('No se ha podido guardar en este navegador. Los datos siguen en pantalla.');return;}
+ cargarVisitas(); alert('Visita guardada en este dispositivo.');
+}
+function cargarVisitas(){
+ const el=document.getElementById('visitasGuardadas'); if(!el)return;
+ let list=[]; try{list=JSON.parse(storageGet('intivolt_visitas','[]'))||[];}catch(e){list=[];}
+ if(!list.length){el.textContent='No hay visitas guardadas.';return;}
+ el.innerHTML=list.map((v,i)=>`<div style="padding:10px 0;border-bottom:1px solid #e3e7ee"><b>${esc(v.cliente||'Cliente')}</b> · ${esc(v.localidad||'')}<br><span>${esc(v.tipo)} · ${esc(v.objetivo)}</span><br><small>${esc(v.resumen)}</small><br><button type="button" class="btn" onclick="cargarVisita(${i})">ABRIR</button></div>`).join('');
+}
+function cargarVisita(i){
+ let list=[]; try{list=JSON.parse(storageGet('intivolt_visitas','[]'))||[];}catch(e){list=[];} const v=list[i]; if(!v)return;
+ const set=(id,val)=>{const e=document.getElementById(id); if(e&&val!==undefined)e.value=val;};
+ set('cliente',v.cliente); set('localidad',v.localidad); set('pais',v.pais||'EC'); set('tipoSuministro',v.tipoSuministro||'residencial'); set('tipoCliente',v.tipo||'Vivienda'); set('objetivoPrincipal',v.objetivo||'Ahorro'); set('corteLuz',v.corte||'Nada importante'); set('equipos',v.equipos||'');
+ set('consumoEC',v.consumoEC); set('gasto',v.gasto); set('consumoES',v.consumoES); set('gastoES',v.gastoES); set('bateria',v.bateria||'no'); set('backup',v.backup||'total'); set('potBackup',v.potBackup); set('horasBackup',v.horasBackup); set('panelW',v.panelW); set('panelL',v.panelL); set('panelA',v.panelA); set('superficieCubierta',v.superficieCubierta); set('comentarios',v.comentarios||'');
+ cambiarPais(); alert('Datos de la visita recuperados.');
+}
+
+function nuevaVisita(){
+ ['cliente','localidad','consumoEC','gasto','consumoES','gastoES','cups','potBackup','equipos','panelResult','superficieCubierta','comentarios'].forEach(id=>{const e=document.getElementById(id); if(e && 'value' in e)e.value='';});
+ document.getElementById('bateria').value='no'; document.getElementById('backup').value='total'; document.getElementById('auto').value='0.80'; document.getElementById('panelW').value='550'; document.getElementById('panelL').value='2.28'; document.getElementById('panelA').value='1.13'; document.getElementById('horasBackup').value='4';
+ document.getElementById('tipoCliente').value='Vivienda'; document.getElementById('objetivoPrincipal').value='Ahorro'; document.getElementById('corteLuz').value='Nada importante'; document.getElementById('pais').value='EC'; document.getElementById('tipoSuministro').value='residencial'; document.getElementById('metodoEC').value='oficial'; document.getElementById('precioManualEC').style.display='none'; document.getElementById('prod').value='1450';
+ document.getElementById('costeKwp').value='1050'; document.getElementById('margenBateria').value='1.20'; document.getElementById('precioUSD').value='0.10'; document.getElementById('panelResult').innerHTML=''; document.getElementById('comparadorModulos').innerHTML=''; document.getElementById('visualResult').innerHTML=''; document.getElementById('fotoPreview').innerHTML=''; document.getElementById('visualTools').style.display='none'; window.visualPoints=[]; window.visualMarking=false; window.visualPlaced=false; document.getElementById('fotoPreview').style.display='none'; document.getElementById('fotoCubierta').value='';
+ cambiarPais(); window.intivoltKwp=0; document.getElementById('out').style.display='none'; document.getElementById('resumen').textContent='Introduce los datos y calcula para generar el resumen.'; window.scrollTo({top:0,behavior:'smooth'});
+}
+
 
 </script>
 </body></html>
