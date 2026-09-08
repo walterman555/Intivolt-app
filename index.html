@@ -25,20 +25,65 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <section class="card">
 <h1>Calculadora INTIVOLT</h1>
 <div class="sub">Instalación fotovoltaica · dimensionamiento según consumo real</div>
+
+<label>País</label>
+<select id="pais" onchange="cambiarPais()">
+  <option value="EC" selected>🇪🇨 Ecuador</option>
+  <option value="ES">🇪🇸 España</option>
+</select>
+
 <div class="grid">
-<div><label>Cliente</label><input id="cliente" placeholder="Nombre / empresa"></div>
-<div><label>Localidad</label><input id="localidad" placeholder="Ciudad"></div>
+  <div><label>Cliente</label><input id="cliente" placeholder="Nombre / empresa"></div>
+  <div><label>Localidad</label><input id="localidad" placeholder="Ciudad"></div>
 </div>
-<label>Consumo mensual (kWh)</label><input id="consumo" type="number" min="0" value="1500">
+
+<div id="ecuadorFields">
+  <label>Gasto mensual de electricidad (USD)</label>
+  <input id="gasto" type="number" min="0" step="1" value="300" placeholder="Ej.: 300">
+  <div class="sub" style="margin:6px 0 0">Si no conoces los kWh, introduce simplemente cuánto pagas al mes.</div>
+
+  <label>Precio estimado de la energía (USD/kWh)</label>
+  <input id="precioUSD" type="number" min="0" step="0.001" value="0.10">
+  <div class="sub" style="margin:6px 0 0">Si no lo sabes, puedes dejar el valor estimado.</div>
+
+  <label>Batería</label>
+  <select id="bateria">
+    <option value="no" selected>No / por estudiar</option>
+    <option value="si">Sí, incluir en la valoración</option>
+  </select>
+</div>
+
+<div id="espanaFields" style="display:none">
+  <label>Consumo mensual (kWh), si lo conoces</label>
+  <input id="consumoES" type="number" min="0" step="1" placeholder="Opcional">
+
+  <label>Gasto mensual de electricidad (€), si no conoces los kWh</label>
+  <input id="gastoES" type="number" min="0" step="1" placeholder="Ej.: 180">
+
+  <label>Precio estimado de la energía (€/kWh)</label>
+  <input id="precioES" type="number" min="0" step="0.001" value="0.16">
+
+  <label>CUPS (si está disponible)</label>
+  <input id="cups" placeholder="Opcional">
+</div>
+
 <div class="grid">
-<div><label>Precio energía (€/kWh)</label><input id="precio" type="number" min="0" step="0.001" value="0.16"></div>
-<div><label>Autoconsumo estimado</label><select id="auto"><option value="0.75">75%</option><option value="0.80" selected>80%</option><option value="0.85">85%</option><option value="0.90">90%</option></select></div>
+  <div><label>Autoconsumo estimado</label>
+    <select id="auto">
+      <option value="0.75">75%</option><option value="0.80" selected>80%</option>
+      <option value="0.85">85%</option><option value="0.90">90%</option>
+    </select>
+  </div>
+  <div><label>Producción específica (kWh/kWp/año)</label>
+    <input id="prod" type="number" min="500" value="1500">
+  </div>
 </div>
-<label>Producción específica (kWh/kWp/año)</label><input id="prod" type="number" min="500" value="1500">
+
 <label>Comentarios / datos de la visita</label>
-<textarea id="comentarios" rows="5" placeholder="Ej.: nave industrial, consumo 8.500 kWh/mes, factura 0,14 €/kWh, cubierta metálica, orientación sur, 1200 m² disponibles, quiere batería..."></textarea>
-<p class="note">Escribe aquí lo que tengas de la visita. La app intentará detectar consumo, precio, superficie y otros datos útiles.</p>
-<button class="btn" onclick="calcular()">CALCULAR INSTALACIÓN Y AHORRO</button>
+<textarea id="comentarios" rows="5" placeholder="Ej.: paga 300 USD/mes, cubierta metálica, orientación sur, 1200 m² disponibles, quiere batería..."></textarea>
+<p class="note">Puedes escribir lo que tengas de la visita. La app intentará detectar gasto, kWh, precio y superficie.</p>
+
+<button class="btn" type="button" onclick="calcular()">CALCULAR INSTALACIÓN Y AHORRO</button>
 </section>
 
 <section class="card accent" id="out" style="display:none">
@@ -62,41 +107,109 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <div class="footer">INTIVOLT ENERGÍA · Ingeniería eléctrica y fotovoltaica</div>
 </main>
 <script>
-function euro(n){return n.toLocaleString('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0})}
+function money(n,currency){
+  return n.toLocaleString('es-ES',{style:'currency',currency:currency,maximumFractionDigits:0});
+}
 function numFromText(s){
- const m=s.replace(",",".").match(/(\d+(?:\.\d+)?)/);
- return m?parseFloat(m[1]):null;
+  if(!s) return null;
+  const m=String(s).replace(",",".").match(/(\d+(?:\.\d+)?)/);
+  return m?parseFloat(m[1]):null;
+}
+function cambiarPais(){
+  const pais=document.getElementById('pais').value;
+  document.getElementById('ecuadorFields').style.display=pais==='EC'?'block':'none';
+  document.getElementById('espanaFields').style.display=pais==='ES'?'block':'none';
 }
 function parseComments(){
- const t=(document.getElementById('comentarios').value||'').toLowerCase();
- let consumo=numFromText((t.match(/(?:consumo|consume|gast[oa]|kwh\s*(?:\/|al)?\s*mes|mensual)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
- let precio=numFromText((t.match(/(?:precio|coste|€\/kwh|eur\/kwh)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
- let superficie=numFromText((t.match(/(?:superficie|cubierta|tejado|techo|m2|metros cuadrados)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
- if(consumo) document.getElementById('consumo').value=consumo;
- if(precio) document.getElementById('precio').value=precio;
- return {consumo,precio,superficie};
+  const t=(document.getElementById('comentarios').value||'').toLowerCase();
+  let consumo=null, precio=null, gasto=null, superficie=null;
+  const kwhMatch=t.match(/(\d+(?:[.,]\d+)?)\s*kwh/);
+  if(kwhMatch) consumo=numFromText(kwhMatch[1]);
+  const gastoMatch=t.match(/(?:gasto|pago|factura)[^0-9]{0,20}(\d+(?:[.,]\d+)?)/);
+  if(gastoMatch) gasto=numFromText(gastoMatch[1]);
+  const precioMatch=t.match(/(?:precio|coste|tarifa)[^0-9]{0,20}(\d+(?:[.,]\d+)?)/);
+  if(precioMatch) precio=numFromText(precioMatch[1]);
+  const superficieMatch=t.match(/(?:superficie|cubierta|tejado|techo)[^0-9]{0,20}(\d+(?:[.,]\d+)?)/);
+  if(superficieMatch) superficie=numFromText(superficieMatch[1]);
+  return {consumo,precio,gasto,superficie};
+}
+function obtenerDatos(){
+  const pais=document.getElementById('pais').value;
+  const extra=parseComments();
+  const notas=document.getElementById('comentarios').value||'';
+
+  if(pais==='EC'){
+    let gasto=+document.getElementById('gasto').value||0;
+    let precio=+document.getElementById('precioUSD').value||0.10;
+    if(extra.gasto && /(?:\$|usd|d[oó]lares|d[oó]lar|pago|factura|gasto)/i.test(notas)){
+      gasto=extra.gasto; document.getElementById('gasto').value=gasto;
+    }
+    if(extra.precio && /(?:precio|coste|tarifa)/i.test(notas)){
+      precio=extra.precio; document.getElementById('precioUSD').value=precio;
+    }
+    if(gasto<=0) throw new Error('Introduce el gasto mensual en USD.');
+    if(precio<=0) throw new Error('Introduce un precio estimado en USD/kWh.');
+    return {pais,gasto,precio,consumoMensual:gasto/precio,moneda:'USD',superficie:extra.superficie};
+  }
+
+  let consumoMensual=+document.getElementById('consumoES').value||0;
+  const gasto=+document.getElementById('gastoES').value||0;
+  const precio=+document.getElementById('precioES').value||0.16;
+  if(consumoMensual<=0 && gasto>0) consumoMensual=gasto/precio;
+  if(consumoMensual<=0 && extra.consumo) consumoMensual=extra.consumo;
+  if(consumoMensual<=0) throw new Error('Introduce los kWh/mes o, si no los conoces, el gasto mensual en euros.');
+  return {pais,gasto:gasto||consumoMensual*precio,precio,consumoMensual,moneda:'EUR',superficie:extra.superficie};
 }
 function calcular(){
- const extra=parseComments();
- const c=+document.getElementById('consumo').value||0,p=+document.getElementById('precio').value||0,
- auto=+document.getElementById('auto').value,prod=+document.getElementById('prod').value||1500;
- const anual=c*12, kwp=Math.max(1, anual*0.75/prod), prodAn=kwp*prod;
- const ahorro=prodAn*p*auto, inversion=kwp*1050, retorno=ahorro?inversion/ahorro:0;
- document.getElementById('kwp').textContent=kwp.toFixed(1)+' kWp';
- document.getElementById('kwh').textContent=Math.round(prodAn).toLocaleString('es-ES')+' kWh';
- document.getElementById('ahorro').textContent=euro(ahorro);
- document.getElementById('ahorroMes').textContent=euro(ahorro/12);
- document.getElementById('inversion').textContent=euro(inversion);
- document.getElementById('retorno').textContent=retorno.toFixed(1)+' años';
- document.getElementById('detalle').textContent='Estimación orientativa basada en los datos introducidos. La app ha intentado extraer automáticamente datos del campo de comentarios.';
- const cliente=document.getElementById('cliente').value||'Cliente',loc=document.getElementById('localidad').value||'';
- let extraTxt='';
- if(extra.superficie) extraTxt=' Superficie detectada: '+extra.superficie+' m².';
- document.getElementById('resumen').textContent=`INTIVOLT ENERGÍA — ${cliente}${loc?' · '+loc:''}. Potencia estimada: ${kwp.toFixed(1)} kWp. Producción: ${Math.round(prodAn).toLocaleString('es-ES')} kWh/año. Ahorro estimado: ${euro(ahorro)}/año. Inversión orientativa: ${euro(inversion)}. Retorno simple: ${retorno.toFixed(1)} años.${extraTxt}`;
- document.getElementById('out').style.display='block';
- localStorage.setItem('intivolt_last',document.getElementById('resumen').textContent);
+  try{
+    const d=obtenerDatos();
+    const auto=+document.getElementById('auto').value;
+    const prod=+document.getElementById('prod').value||1500;
+    const anual=d.consumoMensual*12;
+
+    // Sin límite fijo de 20 kWp: dimensiona según el consumo.
+    const kwp=Math.max(1,anual*0.75/prod);
+    const prodAn=kwp*prod;
+    const ahorro=prodAn*d.precio*auto;
+    const inversion=kwp*1050;
+    const retorno=ahorro?inversion/ahorro:0;
+
+    document.getElementById('kwp').textContent=kwp.toFixed(1)+' kWp';
+    document.getElementById('kwh').textContent=Math.round(prodAn).toLocaleString('es-ES')+' kWh';
+    document.getElementById('ahorro').textContent=money(ahorro,d.moneda);
+    document.getElementById('ahorroMes').textContent=money(ahorro/12,d.moneda);
+    document.getElementById('inversion').textContent=money(inversion,d.moneda);
+    document.getElementById('retorno').textContent=retorno.toFixed(1)+' años';
+
+    const bateria=document.getElementById('bateria').value==='si'?' Batería: incluir en valoración.':'';
+    document.getElementById('detalle').textContent=
+      `ESTIMACIÓN INICIAL. Consumo estimado: ${Math.round(d.consumoMensual).toLocaleString('es-ES')} kWh/mes `+
+      `a partir de ${money(d.gasto,d.moneda)}/mes y ${d.precio.toFixed(3)} ${d.moneda==='USD'?'USD':'EUR'}/kWh. `+
+      `La potencia se dimensiona sin límite fijo de kWp. La valoración definitiva requiere revisión técnica.${bateria}`;
+
+    const cliente=document.getElementById('cliente').value||'Cliente';
+    const loc=document.getElementById('localidad').value||'';
+    const paisTexto=d.pais==='EC'?'Ecuador':'España';
+    const extraTxt=d.superficie?` Superficie detectada: ${d.superficie} m².`:'';
+    document.getElementById('resumen').textContent=
+      `INTIVOLT ENERGÍA — ${paisTexto} — ${cliente}${loc?' · '+loc:''}. `+
+      `Consumo estimado: ${Math.round(anual).toLocaleString('es-ES')} kWh/año. `+
+      `Potencia estimada: ${kwp.toFixed(1)} kWp. Producción: ${Math.round(prodAn).toLocaleString('es-ES')} kWh/año. `+
+      `Ahorro estimado: ${money(ahorro,d.moneda)}/año. Inversión orientativa: ${money(inversion,d.moneda)}. `+
+      `Retorno simple: ${retorno.toFixed(1)} años.${extraTxt}${bateria}`;
+
+    document.getElementById('out').style.display='block';
+    document.getElementById('out').scrollIntoView({behavior:'smooth',block:'start'});
+    localStorage.setItem('intivolt_last',document.getElementById('resumen').textContent);
+  }catch(e){ alert(e.message); }
 }
-function copiar(){navigator.clipboard?.writeText(document.getElementById('resumen').textContent);alert('Resumen copiado.')}
+function copiar(){
+  const txt=document.getElementById('resumen').textContent;
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(()=>alert('Resumen copiado.'));
+  }else alert('El resumen está listo para copiar manualmente.');
+}
+cambiarPais();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body></html>
