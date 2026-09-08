@@ -70,7 +70,7 @@ function numFromText(s){
 function parseComments(){
  const t=(document.getElementById('comentarios').value||'').toLowerCase();
  let consumo=numFromText((t.match(/(?:consumo|consume|gast[oa]|kwh\s*(?:\/|al)?\s*mes|mensual)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
- let precio=numFromText((t.match(/(?:precio|coste|€/kwh|eur\/kwh)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
+ let precio=numFromText((t.match(/(?:precio|coste|€\/kwh|eur\/kwh)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
  let superficie=numFromText((t.match(/(?:superficie|cubierta|tejado|techo|m2|metros cuadrados)[^0-9]{0,25}(\d+(?:[.,]\d+)?)/)||[])[1]||'');
  if(consumo) document.getElementById('consumo').value=consumo;
  if(precio) document.getElementById('precio').value=precio;
