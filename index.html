@@ -26,11 +26,22 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 <h1>Calculadora INTIVOLT</h1>
 <div class="sub">Instalación fotovoltaica · dimensionamiento según consumo real</div>
 
-<label>País</label>
-<select id="pais" onchange="cambiarPais()">
-  <option value="EC" selected>🇪🇨 Ecuador</option>
-  <option value="ES">🇪🇸 España</option>
-</select>
+<div class="grid">
+  <div>
+    <label>País</label>
+    <select id="pais" onchange="cambiarPais()">
+      <option value="EC" selected>🇪🇨 Ecuador</option>
+      <option value="ES">🇪🇸 España</option>
+    </select>
+  </div>
+  <div>
+    <label>Tipo de suministro</label>
+    <select id="tipoSuministro">
+      <option value="residencial" selected>Residencial</option>
+      <option value="general">Comercial / industrial</option>
+    </select>
+  </div>
+</div>
 
 <div class="grid">
   <div><label>Cliente</label><input id="cliente" placeholder="Nombre / empresa"></div>
@@ -42,9 +53,16 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
   <input id="gasto" type="number" min="0" step="1" value="300" placeholder="Ej.: 300">
   <div class="sub" style="margin:6px 0 0">Si no conoces los kWh, introduce simplemente cuánto pagas al mes.</div>
 
-  <label>Precio estimado de la energía (USD/kWh)</label>
-  <input id="precioUSD" type="number" min="0" step="0.001" value="0.10">
-  <div class="sub" style="margin:6px 0 0">Si no lo sabes, puedes dejar el valor estimado.</div>
+  <label>Tarifa / método de cálculo</label>
+  <select id="metodoEC">
+    <option value="oficial" selected>Estimar kWh con tarifa residencial 2026</option>
+    <option value="manual">Tengo precio efectivo USD/kWh</option>
+  </select>
+  <div id="precioManualEC" style="display:none">
+    <label>Precio efectivo de la energía (USD/kWh)</label>
+    <input id="precioUSD" type="number" min="0" step="0.001" value="0.10">
+  </div>
+  <div class="sub" style="margin:6px 0 0">En residencial, la app convierte la factura en kWh usando los cargos incrementales del pliego 2026. Es una estimación, no sustituye la factura.</div>
 
   <label>Batería</label>
   <select id="bateria">
@@ -119,7 +137,26 @@ function cambiarPais(){
   const pais=document.getElementById('pais').value;
   document.getElementById('ecuadorFields').style.display=pais==='EC'?'block':'none';
   document.getElementById('espanaFields').style.display=pais==='ES'?'block':'none';
+  actualizarProduccion();
 }
+function actualizarProduccion(){
+  const pais=document.getElementById('pais').value;
+  const loc=(document.getElementById('localidad').value||'').toLowerCase();
+  const prod=document.getElementById('prod');
+  if(pais==='EC'){
+    prod.value=loc.includes('manta') ? 1356 : 1450;
+  }else{
+    prod.value=loc.includes('alicante') ? 1610 : 1600;
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const m=document.getElementById('metodoEC');
+  if(m) m.addEventListener('change',()=>{
+    document.getElementById('precioManualEC').style.display=m.value==='manual'?'block':'none';
+  });
+  const l=document.getElementById('localidad');
+  if(l) l.addEventListener('blur',actualizarProduccion);
+});
 function parseComments(){
   const t=(document.getElementById('comentarios').value||'').toLowerCase();
   let consumo=null, precio=null, gasto=null, superficie=null;
@@ -133,23 +170,63 @@ function parseComments(){
   if(superficieMatch) superficie=numFromText(superficieMatch[1]);
   return {consumo,precio,gasto,superficie};
 }
+function costeResidencialEC(q){
+  // ARCONEL 2026: cargo por comercialización + cargos incrementales de energía.
+  // Rango y precios oficiales publicados en el pliego 2026.
+  const bloques=[
+    [50,0.091],[50,0.093],[50,0.095],[50,0.097],[50,0.099],
+    [50,0.101],[50,0.103],[150,0.105],[200,0.1285],[300,0.1450],
+    [500,0.1709],[1000,0.2752],[1000,0.4360],[1e9,0.6812]
+  ];
+  let rem=q,total=1.414;
+  for(const [qty,rate] of bloques){
+    const take=Math.min(rem,qty);
+    total+=take*rate;
+    rem-=take;
+    if(rem<=0) break;
+  }
+  return total;
+}
+function consumoDesdeFacturaEC(factura){
+  let lo=0,hi=10000;
+  for(let i=0;i<70;i++){
+    const mid=(lo+hi)/2;
+    if(costeResidencialEC(mid)>factura) hi=mid; else lo=mid;
+  }
+  return lo;
+}
 function obtenerDatos(){
   const pais=document.getElementById('pais').value;
+  const tipo=document.getElementById('tipoSuministro').value;
   const extra=parseComments();
   const notas=document.getElementById('comentarios').value||'';
 
   if(pais==='EC'){
-    let gasto=+document.getElementById('gasto').value||0;
-    let precio=+document.getElementById('precioUSD').value||0.10;
-    if(extra.gasto && /(?:\$|usd|d[oó]lares|d[oó]lar|pago|factura|gasto)/i.test(notas)){
-      gasto=extra.gasto; document.getElementById('gasto').value=gasto;
-    }
-    if(extra.precio && /(?:precio|coste|tarifa)/i.test(notas)){
-      precio=extra.precio; document.getElementById('precioUSD').value=precio;
-    }
+    const gasto=+document.getElementById('gasto').value||0;
     if(gasto<=0) throw new Error('Introduce el gasto mensual en USD.');
-    if(precio<=0) throw new Error('Introduce un precio estimado en USD/kWh.');
-    return {pais,gasto,precio,consumoMensual:gasto/precio,moneda:'USD',superficie:extra.superficie};
+
+    if(extra.gasto && /(?:\$|usd|d[oó]lares|d[oó]lar|pago|factura|gasto)/i.test(notas)){
+      document.getElementById('gasto').value=extra.gasto;
+    }
+
+    let consumoMensual=0, precioEfectivo=0.10, metodo=document.getElementById('metodoEC').value;
+    let confianza='media';
+
+    if(tipo==='residencial' && metodo==='oficial'){
+      consumoMensual=consumoDesdeFacturaEC(+document.getElementById('gasto').value||gasto);
+      precioEfectivo=(+document.getElementById('gasto').value||gasto)/consumoMensual;
+      confianza='media-alta para una primera valoración';
+    }else{
+      precioEfectivo=+document.getElementById('precioUSD').value||0.10;
+      consumoMensual=(+document.getElementById('gasto').value||gasto)/precioEfectivo;
+      confianza='media-baja: requiere factura o kWh reales';
+    }
+
+    if(extra.consumo && /kwh/i.test(notas)) consumoMensual=extra.consumo;
+    return {
+      pais,tipo,gasto:gasto,precio:precioEfectivo,consumoMensual,
+      moneda:'USD',superficie:extra.superficie,confianza,metodo
+    };
   }
 
   let consumoMensual=+document.getElementById('consumoES').value||0;
@@ -158,7 +235,7 @@ function obtenerDatos(){
   if(consumoMensual<=0 && gasto>0) consumoMensual=gasto/precio;
   if(consumoMensual<=0 && extra.consumo) consumoMensual=extra.consumo;
   if(consumoMensual<=0) throw new Error('Introduce los kWh/mes o, si no los conoces, el gasto mensual en euros.');
-  return {pais,gasto:gasto||consumoMensual*precio,precio,consumoMensual,moneda:'EUR',superficie:extra.superficie};
+  return {pais,tipo,gasto:gasto||consumoMensual*precio,precio,consumoMensual,moneda:'EUR',superficie:extra.superficie,confianza:'media'};
 }
 function calcular(){
   try{
@@ -168,9 +245,10 @@ function calcular(){
     const anual=d.consumoMensual*12;
 
     // Sin límite fijo de 20 kWp: dimensiona según el consumo.
-    const kwp=Math.max(1,anual*0.75/prod);
+    const coberturaObjetivo=Math.min(0.85, Math.max(0.65, auto*0.90));
+    const kwp=Math.max(1,anual*coberturaObjetivo/prod);
     const prodAn=kwp*prod;
-    const ahorro=prodAn*d.precio*auto;
+    const ahorro=Math.min(d.gasto*12, prodAn*d.precio*auto);
     const inversion=kwp*1050;
     const retorno=ahorro?inversion/ahorro:0;
 
@@ -183,7 +261,7 @@ function calcular(){
 
     const bateria=document.getElementById('bateria').value==='si'?' Batería: incluir en valoración.':'';
     document.getElementById('detalle').textContent=
-      `ESTIMACIÓN INICIAL. Consumo estimado: ${Math.round(d.consumoMensual).toLocaleString('es-ES')} kWh/mes `+
+      `ESTIMACIÓN INICIAL (${d.confianza}). Consumo estimado: ${Math.round(d.consumoMensual).toLocaleString('es-ES')} kWh/mes `+
       `a partir de ${money(d.gasto,d.moneda)}/mes y ${d.precio.toFixed(3)} ${d.moneda==='USD'?'USD':'EUR'}/kWh. `+
       `La potencia se dimensiona sin límite fijo de kWp. La valoración definitiva requiere revisión técnica.${bateria}`;
 
